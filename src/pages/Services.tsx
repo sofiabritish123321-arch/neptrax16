@@ -7,37 +7,66 @@ interface ServicesProps {
 
 export default function Services({ onNavigate }: ServicesProps) {
   const [isLoaded, setIsLoaded] = useState(false);
-  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
-  const cardsRef = useRef<(HTMLDivElement | null)[]>([]);
-  const servicesGridRef = useRef<HTMLDivElement>(null);
+  const servicesCarouselRef = useRef<HTMLDivElement>(null);
+  const scrollTrackRef = useRef<HTMLDivElement>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const autoScrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleDiscoverClick = () => {
-    servicesGridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    servicesCarouselRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   useEffect(() => {
     setTimeout(() => setIsLoaded(true), 300);
   }, []);
 
-  // Intersection Observer for card animations
+  // Carousel auto-scroll functionality
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('card-visible');
+    const totalSlides = 12;
+    const visibleCards = 5;
+    const maxIndex = totalSlides - visibleCards;
+
+    const updateCarousel = () => {
+      if (scrollTrackRef.current) {
+        const slideWidth = scrollTrackRef.current.offsetWidth / visibleCards;
+        scrollTrackRef.current.style.transform = `translateX(-${currentIndex * slideWidth}px)`;
+
+        // Update spotlight effect
+        const slides = scrollTrackRef.current.querySelectorAll('.service-slide');
+        slides.forEach((slide, idx) => {
+          slide.classList.remove('center-spotlight');
+          // Center card is at position currentIndex + 2 (middle of 5 visible)
+          if (idx === currentIndex + 2) {
+            slide.classList.add('center-spotlight');
           }
         });
-      },
-      { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
-    );
+      }
+    };
 
-    cardsRef.current.forEach((card) => {
-      if (card) observer.observe(card);
-    });
+    updateCarousel();
 
-    return () => observer.disconnect();
-  }, []);
+    // Auto-scroll every 3 seconds
+    autoScrollIntervalRef.current = setInterval(() => {
+      setCurrentIndex((prev) => (prev >= maxIndex ? 0 : prev + 1));
+    }, 3000);
+
+    return () => {
+      if (autoScrollIntervalRef.current) {
+        clearInterval(autoScrollIntervalRef.current);
+      }
+    };
+  }, [currentIndex]);
+
+  const handlePrev = () => {
+    setCurrentIndex((prev) => Math.max(0, prev - 1));
+  };
+
+  const handleNext = () => {
+    const totalSlides = 12;
+    const visibleCards = 5;
+    const maxIndex = totalSlides - visibleCards;
+    setCurrentIndex((prev) => Math.min(maxIndex, prev + 1));
+  };
 
   // Reveal on scroll for showcase section
   useEffect(() => {
@@ -178,60 +207,58 @@ export default function Services({ onNavigate }: ServicesProps) {
         </div>
       </section>
 
-      {/* Services Grid Section */}
-      <section ref={servicesGridRef} className="relative py-24 bg-gradient-to-b from-[#0a0a0a] to-[#0f172a]">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-12 reveal-heading">
-            <h2 className="text-5xl md:text-6xl font-bold text-white mb-4">Explore our Service</h2>
+      {/* Services Carousel Section */}
+      <section ref={servicesCarouselRef} id="services-carousel" className="relative py-24 bg-gradient-to-b from-[#0a0a0a] to-[#0f172a] overflow-hidden">
+        <div className="max-w-full mx-auto px-6">
+          <div className="text-center mb-16 reveal-heading">
+            <h2 className="text-5xl md:text-6xl font-bold text-white mb-4">Explore our Services</h2>
             <div className="w-24 h-1 bg-gradient-to-r from-cyan-400 to-blue-500 mx-auto rounded-full"></div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {servicesList.map((service, index) => (
-                <div
-                  key={index}
-                  ref={(el) => (cardsRef.current[index] = el)}
-                  className="service-card group relative bg-gradient-to-br from-gray-900/50 to-gray-800/30 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50 hover:border-cyan-400/50 transition-all duration-500 overflow-hidden"
-                  onMouseEnter={() => setHoveredCard(index)}
-                  onMouseLeave={() => setHoveredCard(null)}
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  {/* Animated Background Gradient */}
-                  <div className={`absolute inset-0 bg-gradient-to-br ${service.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-500`}></div>
 
-                  {/* Card Corner Accent */}
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-cyan-500/20 to-transparent rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-
-                  {/* Image Placeholder */}
-                  <div className="relative mb-6 rounded-xl overflow-hidden h-48 bg-gray-800/50 group-hover:scale-105 transition-transform duration-500">
+          {/* Carousel Container */}
+          <div className="scroller-container mb-12">
+            <div className="scroller-track" ref={scrollTrackRef}>
+              {servicesList.map((service, index) => (
+                <div key={index} className="service-slide">
+                  {/* Image Section */}
+                  <div className="slide-image">
                     <img
                       src="/portfolio/jeton.png"
                       alt={service.title}
-                      className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-500"
+                      className="w-full h-full object-cover"
                     />
-                    <div className={`absolute inset-0 bg-gradient-to-br ${service.gradient} opacity-30 mix-blend-overlay`}></div>
                   </div>
 
-                  {/* Content */}
-                  <div className="relative z-10">
-                    <h3 className="text-xl font-bold text-white mb-3 group-hover:text-cyan-400 transition-colors duration-300">
+                  {/* Content Section */}
+                  <div className="slide-content">
+                    <h3 className="text-2xl font-bold text-white mb-4">
                       {service.title}
                     </h3>
-                    <p className="text-gray-400 text-sm leading-relaxed line-clamp-4 group-hover:text-gray-300 transition-colors duration-300">
+                    <p className="text-gray-400 text-base leading-relaxed">
                       {service.description}
                     </p>
                   </div>
-
-                  {/* Hover Glow Effect */}
-                  <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${service.gradient} opacity-0 group-hover:opacity-20 blur-xl transition-opacity duration-500 pointer-events-none`}></div>
-
-                  {/* Animated Border */}
-                  <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                    <div className={`absolute inset-0 rounded-2xl bg-gradient-to-r ${service.gradient} p-[1px]`}>
-                      <div className="w-full h-full bg-transparent rounded-2xl"></div>
-                    </div>
-                  </div>
                 </div>
-            ))}
+              ))}
+            </div>
+          </div>
+
+          {/* Navigation Controls */}
+          <div className="scroller-controls">
+            <button
+              onClick={handlePrev}
+              className="arrow-btn prev-btn"
+              aria-label="Previous slide"
+            >
+              ←
+            </button>
+            <button
+              onClick={handleNext}
+              className="arrow-btn next-btn"
+              aria-label="Next slide"
+            >
+              →
+            </button>
           </div>
         </div>
       </section>
@@ -609,21 +636,104 @@ export default function Services({ onNavigate }: ServicesProps) {
           animation: glow-text 3s ease-in-out infinite;
         }
 
-        .service-card {
-          opacity: 0;
-          transform: translateY(30px) scale(0.95);
-          transition: all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        }
+        /* ============================================
+           CAROUSEL STYLES
+           ============================================ */
 
-        .service-card.card-visible {
-          animation: card-fade-in 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-        }
-
-        .line-clamp-4 {
-          display: -webkit-box;
-          -webkit-line-clamp: 4;
-          -webkit-box-orient: vertical;
+        .scroller-container {
           overflow: hidden;
+          width: 100%;
+          position: relative;
+        }
+
+        .scroller-track {
+          display: flex;
+          gap: 30px;
+          transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+          width: fit-content;
+        }
+
+        .service-slide {
+          flex: 0 0 calc(20% - 24px);
+          min-width: 600px;
+          background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.8) 100%);
+          backdrop-filter: blur(10px);
+          border-radius: 24px;
+          overflow: hidden;
+          border: 2px solid rgba(100, 116, 139, 0.3);
+          transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+          opacity: 0.5;
+          transform: scale(0.85);
+        }
+
+        .service-slide.center-spotlight {
+          transform: scale(1);
+          opacity: 1;
+          border-color: rgba(6, 182, 212, 0.6);
+          box-shadow: 0 20px 60px rgba(6, 182, 212, 0.3);
+          z-index: 10;
+        }
+
+        .slide-image {
+          width: 100%;
+          height: 400px;
+          overflow: hidden;
+          position: relative;
+        }
+
+        .slide-image img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          transition: transform 0.5s ease;
+        }
+
+        .service-slide.center-spotlight .slide-image img {
+          transform: scale(1.05);
+        }
+
+        .slide-content {
+          padding: 32px;
+          background: rgba(15, 23, 42, 0.6);
+        }
+
+        .service-slide.center-spotlight .slide-content h3 {
+          color: rgba(6, 182, 212, 1);
+        }
+
+        /* Navigation Controls */
+        .scroller-controls {
+          display: flex;
+          justify-content: center;
+          gap: 24px;
+          margin-top: 48px;
+        }
+
+        .arrow-btn {
+          width: 60px;
+          height: 60px;
+          background: linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%);
+          backdrop-filter: blur(10px);
+          border: 2px solid rgba(6, 182, 212, 0.4);
+          color: white;
+          font-size: 24px;
+          border-radius: 50%;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .arrow-btn:hover {
+          background: linear-gradient(135deg, rgba(6, 182, 212, 0.4) 0%, rgba(59, 130, 246, 0.4) 100%);
+          border-color: rgba(6, 182, 212, 0.8);
+          transform: scale(1.1);
+          box-shadow: 0 0 30px rgba(6, 182, 212, 0.5);
+        }
+
+        .arrow-btn:active {
+          transform: scale(0.95);
         }
 
         /* Reveal animations for showcase section */
@@ -992,10 +1102,6 @@ export default function Services({ onNavigate }: ServicesProps) {
            ============================================ */
 
         @media (max-width: 1024px) {
-          .grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
-
           .display-hero {
             font-size: 3rem;
             line-height: 1.1;
@@ -1008,13 +1114,30 @@ export default function Services({ onNavigate }: ServicesProps) {
           .floating-orb-1 { width: 200px; height: 200px; }
           .floating-orb-2 { width: 250px; height: 250px; }
           .floating-orb-3 { width: 150px; height: 150px; }
+
+          /* Carousel mobile adjustments */
+          .service-slide {
+            min-width: 400px;
+          }
+
+          .slide-image {
+            height: 300px;
+          }
+
+          .slide-content {
+            padding: 24px;
+          }
+
+          .slide-content h3 {
+            font-size: 1.5rem;
+          }
+
+          .slide-content p {
+            font-size: 0.875rem;
+          }
         }
 
         @media (max-width: 640px) {
-          .grid {
-            grid-template-columns: repeat(1, 1fr);
-          }
-
           .display-hero {
             font-size: 2rem;
             line-height: 1.15;
@@ -1043,6 +1166,39 @@ export default function Services({ onNavigate }: ServicesProps) {
 
           .corner-accent {
             display: none;
+          }
+
+          /* Carousel mobile */
+          .service-slide {
+            min-width: 300px;
+          }
+
+          .slide-image {
+            height: 250px;
+          }
+
+          .slide-content {
+            padding: 20px;
+          }
+
+          .slide-content h3 {
+            font-size: 1.25rem;
+            margin-bottom: 12px;
+          }
+
+          .slide-content p {
+            font-size: 0.8125rem;
+          }
+
+          .arrow-btn {
+            width: 50px;
+            height: 50px;
+            font-size: 20px;
+          }
+
+          .scroller-controls {
+            gap: 16px;
+            margin-top: 32px;
           }
         }
 
